@@ -1,0 +1,54 @@
+data:
+  topics_url: "https://trec.nist.gov/data/trials/topics2023.xml"
+  qrels_url: "https://trec.nist.gov/data/trials/qrels2023.txt"
+  topics_path: "data/trec2023/topics2023.xml"
+  qrels_path: "data/trec2023/qrels2023.txt"
+
+elasticsearch:
+  url: "http://localhost:9200"
+  index: "aact"
+  fields:
+    - "text"
+    - "title"
+    - "brief_title"
+    - "official_title"
+    - "brief_summary"
+    - "detailed_description"
+    - "condition"
+    - "conditions"
+    - "intervention_name"
+    - "interventions"
+    - "eligibility_criteria"
+    - "primary_outcome"
+    - "keywords"
+    - "mesh_terms_conditions"
+    - "mesh_terms_interventions"
+    - "sites_text"
+    - "general_keywords"
+    - "drug_name"
+    - "drug_keywords"
+
+experiment:
+  top_k_bm25: 1000
+  neural_window: 1000
+  neural_keep: 100
+  llm_direct_window: 100
+  llm_final_window: 100
+  llm_keep: 10
+  output_dir: "runs"
+  cache_dir: "cache"
+
+trec_eval:
+  path: "trec_eval"
+
+models:
+  minilm: "cross-encoder/ms-marco-MiniLM-L6-v2"
+  medcpt: "ncbi/MedCPT-Cross-Encoder"
+  bge: "BAAI/bge-reranker-v2-m3"
+  jina: "jinaai/jina-reranker-v2-base-multilingual"
+
+llm:
+  provider: "openai"
+  model: "gpt-4.1-nano"
+  temperature: 0
+  max_retries: 3
