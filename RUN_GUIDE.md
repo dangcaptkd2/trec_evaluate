@@ -71,14 +71,14 @@ BM25 only:
 
 ```bash
 uv run trec-evaluate run-experiment --config bm25_only --limit-topics 1
-uv run trec-evaluate eval-runs --run-dir runs/latest --trec-eval tools/trec_eval/trec_eval
+uv run trec-evaluate eval-runs --run-dir runs/latest --trec-eval tools/trec_eval/trec_evaltrec_eval
 ```
 
 BM25 + một neural reranker, khuyến nghị test `bm25_minilm` trước:
 
 ```bash
 uv run trec-evaluate run-experiment --config bm25_minilm --limit-topics 1
-uv run trec-evaluate eval-runs --run-dir runs/latest --trec-eval tools/trec_eval/trec_eval
+uv run trec-evaluate eval-runs --run-dir runs/latest --trec-eval tools/trec_eval/trec_evaltrec_eval
 ```
 
 BM25 + Jina reranker + OpenAI LLM reranker:

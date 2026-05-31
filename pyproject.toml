@@ -3,7 +3,7 @@ name = "trec-evaluate"
 version = "0.1.0"
 description = "TREC 2023 clinical trial matching experiment pipeline"
 readme = "README.md"
-requires-python = "==3.12"
+requires-python = ">=3.11"
 dependencies = [
     "python-dotenv>=1.0.0",
     "pyyaml>=6.0.0",
