@@ -10,11 +10,15 @@ from urllib.request import Request, urlopen
 class ElasticsearchHttpClient:
     def __init__(self, base_url: str = "http://localhost:9200"):
         self.base_url = base_url.rstrip("/")
+        self.headers = {
+            "Content-Type": "application/json",
+            "User-Agent": "curl/8.0.0",
+        }
 
     def request(self, method: str, path: str, body: dict[str, Any] | None = None) -> dict[str, Any]:
         url = f"{self.base_url}{path}"
         data = json.dumps(body).encode("utf-8") if body is not None else None
-        req = Request(url, data=data, method=method, headers={"Content-Type": "application/json"})
+        req = Request(url, data=data, method=method, headers=self.headers)
         try:
             with urlopen(req, timeout=120) as resp:
                 raw = resp.read()
@@ -26,9 +30,13 @@ class ElasticsearchHttpClient:
         return json.loads(raw.decode("utf-8")) if raw else {}
 
     def text(self, path: str) -> str:
+        req = Request(f"{self.base_url}{path}", headers=self.headers)
         try:
-            with urlopen(f"{self.base_url}{path}", timeout=30) as resp:
+            with urlopen(req, timeout=30) as resp:
                 return resp.read().decode("utf-8")
+        except HTTPError as e:
+            detail = e.read().decode("utf-8", errors="replace")
+            raise RuntimeError(f"Elasticsearch HTTP {e.code} for GET {path}: {detail}") from e
         except URLError as e:
             raise RuntimeError(f"Cannot connect to Elasticsearch at {self.base_url}: {e.reason}") from e
 
@@ -75,4 +83,3 @@ def discover_text_fields(mapping: dict[str, Any], configured_fields: list[str]) 
     text_fields = {name for name, spec in properties.items() if spec.get("type") in {"text", "keyword"}}
     fields = [field for field in configured_fields if field.split("^", 1)[0] in text_fields]
     return fields or configured_fields
-
