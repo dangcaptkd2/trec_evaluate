@@ -91,10 +91,14 @@ def _inspect_es(config: dict, es_url: str | None, es_index: str | None) -> int:
     es_cfg = config["elasticsearch"]
     client = ElasticsearchHttpClient(es_url or es_cfg.get("url", "http://localhost:9200"))
     index = es_index or es_cfg.get("index")
-    print(client.indices())
+    try:
+        print(client.indices())
+    except RuntimeError as e:
+        print(f"Index listing unavailable: {e}")
     mapping = client.mapping(index)
     fields = discover_text_fields(mapping, es_cfg.get("fields", []))
     print(f"Index: {index}")
+    print(f"Query mode: {es_cfg.get('query_mode', 'multi_match')}")
     print(f"Document count: {client.count(index)}")
     print(f"Search fields: {', '.join(fields)}")
     sample = client.sample(index)
@@ -123,4 +127,3 @@ def _eval_runs(config: dict, run_dir: str, trec_eval: str | None, qrels: str | N
 
 if __name__ == "__main__":
     raise SystemExit(main())
-

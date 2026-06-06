@@ -92,6 +92,7 @@ def run_experiment(
     index = es_index or es_cfg.get("index")
     mapping = client.mapping(index)
     fields = _apply_field_boosts(discover_text_fields(mapping, es_cfg.get("fields", ["text"])), es_cfg)
+    query_mode = es_cfg.get("query_mode", "multi_match")
 
     cache_dir = Path(exp_cfg.get("cache_dir", "cache"))
     top_k = int(exp_cfg.get("top_k_bm25", 1000))
@@ -155,7 +156,7 @@ def run_experiment(
             candidates = bm25_cache.get(bm25_key)
             if candidates is None:
                 search_started = time.perf_counter()
-                candidates = _retrieve_candidates(client, index, fields, query, top_k)
+                candidates = _retrieve_candidates(client, index, fields, query, top_k, query_mode)
                 latency_rows.append(_latency_row(name, topic.number, "bm25", search_started, len(candidates)))
                 bm25_cache[bm25_key] = candidates
 
@@ -188,8 +189,15 @@ def run_experiment(
     return ExperimentResult(output, run_files, latency_rows)
 
 
-def _retrieve_candidates(client: ElasticsearchHttpClient, index: str, fields: list[str], query: str, top_k: int) -> list[Candidate]:
-    hits = client.search(index=index, query_text=query, fields=fields, size=top_k)
+def _retrieve_candidates(
+    client: ElasticsearchHttpClient,
+    index: str,
+    fields: list[str],
+    query: str,
+    top_k: int,
+    query_mode: str,
+) -> list[Candidate]:
+    hits = client.search(index=index, query_text=query, fields=fields, size=top_k, query_mode=query_mode)
     candidates: list[Candidate] = []
     for hit in hits:
         doc_id = str(hit.get("_id"))
@@ -199,6 +207,8 @@ def _retrieve_candidates(client: ElasticsearchHttpClient, index: str, fields: li
 
 
 def _apply_field_boosts(fields: list[str], es_cfg: dict[str, Any]) -> list[str]:
+    if es_cfg.get("query_mode") == "text_match":
+        return [field.split("^", 1)[0] for field in fields]
     boosts = es_cfg.get("bm25", {}).get("field_boosts", {})
     boosted_fields: list[str] = []
     for field in fields:

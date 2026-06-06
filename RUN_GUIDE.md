@@ -60,16 +60,16 @@ tools/trec_eval/trec_eval
 
 ## 4. Kiểm tra Elasticsearch
 
-Default index hiện tại trong `configs/trec2023.yaml` là `aact`.
+Default index hiện tại trong `configs/trec2023.yaml` là `trec2023_ctnlp` trên RunPod Elasticsearch. Index này không có field `text` đơn như bản cũ, nên BM25 dùng `query_mode: cross_fields` trên các field CTnlp để mô phỏng một tài liệu lâm sàng gộp.
 
 ```bash
-uv run trec-evaluate inspect-es --es-url http://localhost:9200
+uv run trec-evaluate inspect-es
 ```
 
-Nếu muốn chỉ rõ index:
+Nếu muốn chỉ rõ URL/index khác:
 
 ```bash
-uv run trec-evaluate inspect-es --es-url http://localhost:9200 --es-index aact
+uv run trec-evaluate inspect-es --es-url https://8t2muxa4qo42wo-9200.proxy.runpod.net --es-index trec2023_ctnlp
 ```
 
 ## 5. Chạy thử 1 topic

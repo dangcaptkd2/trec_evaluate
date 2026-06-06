@@ -18,28 +18,18 @@ data:
     translation_strategy: "on_the_fly_query_translation"
 
 elasticsearch:
-  url: "http://localhost:9200"
-  index: "aact"
+  url: "https://8t2muxa4qo42wo-9200.proxy.runpod.net"
+  index: "trec2023_ctnlp"
+  query_mode: "cross_fields"
   fields:
-    - "text"
     - "title"
-    - "brief_title"
     - "official_title"
     - "brief_summary"
-    - "detailed_description"
-    - "condition"
     - "conditions"
-    - "intervention_name"
     - "interventions"
     - "eligibility_criteria"
-    - "primary_outcome"
     - "keywords"
-    - "mesh_terms_conditions"
-    - "mesh_terms_interventions"
-    - "sites_text"
-    - "general_keywords"
-    - "drug_name"
-    - "drug_keywords"
+    - "sites"
   bm25:
     candidate_top_k: 1000
     field_boosts:

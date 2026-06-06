@@ -54,21 +54,40 @@ class ElasticsearchHttpClient:
         hits = self.request("GET", f"/{quote(index)}/_search", body).get("hits", {}).get("hits", [])
         return hits[0] if hits else {}
 
-    def search(self, index: str, query_text: str, fields: list[str], size: int) -> list[dict[str, Any]]:
+    def search(
+        self,
+        index: str,
+        query_text: str,
+        fields: list[str],
+        size: int,
+        query_mode: str = "multi_match",
+    ) -> list[dict[str, Any]]:
         query_text = " ".join((query_text or "").split())
         if not query_text:
             return []
-        body = {
-            "size": size,
-            "_source": True,
-            "query": {
+        if query_mode == "text_match":
+            field = fields[0].split("^", 1)[0] if fields else "text"
+            query = {
+                "match": {
+                    field: {
+                        "query": query_text,
+                        "operator": "or",
+                    }
+                }
+            }
+        else:
+            query = {
                 "multi_match": {
                     "query": query_text,
                     "fields": fields,
-                    "type": "best_fields",
+                    "type": query_mode,
                     "operator": "or",
                 }
-            },
+            }
+        body = {
+            "size": size,
+            "_source": True,
+            "query": query,
         }
         hits = self.request("GET", f"/{quote(index)}/_search", body).get("hits", {}).get("hits", [])
         return hits

@@ -8,15 +8,17 @@ with `trec_eval`, and exports thesis-ready result tables.
 ```bash
 uv sync --extra test
 uv run trec-evaluate download-data
-uv run trec-evaluate inspect-es --es-url http://localhost:9200
-uv run trec-evaluate run-experiment --config bm25_only --es-index aact
+uv run trec-evaluate inspect-es
+uv run trec-evaluate run-experiment --config bm25_only
 uv run trec-evaluate eval-runs --trec-eval /path/to/trec_eval
 uv run trec-evaluate export-tables --run-dir runs/latest
 ```
 
-On this machine the detected Elasticsearch index is `aact`, so the default
-configuration uses that index. Override it with `--es-index` if you rebuild the
-data into a different index.
+The default configuration uses the CTnlp-built Elasticsearch index
+`trec2023_ctnlp` at the configured RunPod URL. This remote index does not expose
+the old single `text` field, so BM25 uses `cross_fields` over the CTnlp-derived
+trial fields to approximate one combined clinical document. Override `--es-url`
+or `--es-index` only if you rebuild the data into a different index.
 
 To install the official NIST evaluator locally:
 
