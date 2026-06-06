@@ -7,8 +7,10 @@ from pathlib import Path
 import time
 from typing import Any
 
+from .cache import key_for
 from .es import ElasticsearchHttpClient, discover_text_fields
 from .llm import LlmReranker, llm_rerank_candidates
+from .query_expansion import QueryExpander
 from .rerank import Candidate, CrossEncoderReranker, rerank_candidates
 from .runfile import write_run
 from .topics import Topic, parse_topics
@@ -17,6 +19,7 @@ from .trial_text import build_trial_text
 
 ALL_CONFIGS = (
     "bm25_only",
+    "bm25_expanded",
     "bm25_minilm_l6",
     "bm25_medcpt",
     "bm25_minilm_l12",
@@ -26,6 +29,7 @@ ALL_CONFIGS = (
 
 CONFIGS = {
     "bm25_only",
+    "bm25_expanded",
     "bm25_minilm_l6",
     "bm25_minilm_l12",
     "bm25_medcpt",
@@ -96,6 +100,7 @@ def run_experiment(
     llm_direct_window = int(exp_cfg.get("llm_direct_window", 100))
     llm_final_window = int(exp_cfg.get("llm_final_window", 100))
     llm_keep = int(exp_cfg.get("llm_keep", 10))
+    expansion_cfg = config.get("query_expansion", {})
 
     run_files: list[Path] = []
     latency_rows: list[dict[str, str]] = []
@@ -103,6 +108,19 @@ def run_experiment(
 
     for name in names:
         entries_by_topic: dict[str, list[tuple[str, float]]] = {}
+        query_expander = (
+            QueryExpander(
+                provider=expansion_cfg.get("provider", llm_cfg.get("provider", "openai")),
+                model=expansion_cfg.get("model", llm_cfg.get("model", "gpt-4.1-nano")),
+                cache_dir=cache_dir / "query_expansion",
+                temperature=float(expansion_cfg.get("temperature", 0)),
+                max_retries=int(expansion_cfg.get("max_retries", llm_cfg.get("max_retries", 3))),
+                max_terms_per_category=int(expansion_cfg.get("max_terms_per_category", 8)),
+                use_related_concepts=bool(expansion_cfg.get("use_related_concepts", True)),
+            )
+            if _uses_query_expansion(name, expansion_cfg)
+            else None
+        )
         neural_model = _neural_model_for_config(name, model_cfg)
         neural_reranker = (
             CrossEncoderReranker(
@@ -127,14 +145,19 @@ def run_experiment(
         )
 
         for topic in topics:
-            query = topic.to_query_text(include_template=False)
             started = time.perf_counter()
-            candidates = bm25_cache.get(topic.number)
+            query = topic.to_query_text(include_template=False)
+            if query_expander is not None:
+                expansion_started = time.perf_counter()
+                query = query_expander.expand(topic.number, query)
+                latency_rows.append(_latency_row(name, topic.number, "query_expansion", expansion_started, 1))
+            bm25_key = key_for(topic.number, query)
+            candidates = bm25_cache.get(bm25_key)
             if candidates is None:
                 search_started = time.perf_counter()
                 candidates = _retrieve_candidates(client, index, fields, query, top_k)
                 latency_rows.append(_latency_row(name, topic.number, "bm25", search_started, len(candidates)))
-                bm25_cache[topic.number] = candidates
+                bm25_cache[bm25_key] = candidates
 
             ranked = candidates
             if neural_reranker is not None:
@@ -183,6 +206,12 @@ def _apply_field_boosts(fields: list[str], es_cfg: dict[str, Any]) -> list[str]:
         boost = boosts.get(base)
         boosted_fields.append(f"{base}^{boost}" if boost and boost != 1 else base)
     return boosted_fields
+
+
+def _uses_query_expansion(name: str, expansion_cfg: dict[str, Any]) -> bool:
+    if name == "bm25_expanded":
+        return bool(expansion_cfg.get("enabled", True))
+    return False
 
 
 def _neural_model_for_config(name: str, model_cfg: dict[str, Any]) -> str | None:

@@ -90,6 +90,7 @@ experiment:
   thesis_runs:
     reranker_selection:
       - "bm25_only"
+      - "bm25_expanded"
       - "bm25_minilm_l6"
       - "bm25_medcpt"
       - "bm25_minilm_l12"
@@ -106,6 +107,15 @@ experiment:
 
 trec_eval:
   path: "trec_eval"
+
+query_expansion:
+  enabled: true
+  provider: "openai"
+  model: "gpt-4.1-nano"
+  temperature: 0
+  max_retries: 3
+  max_terms_per_category: 8
+  use_related_concepts: true
 
 models:
   minilm_l6: "cross-encoder/ms-marco-MiniLM-L6-v2"

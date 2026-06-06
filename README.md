@@ -38,6 +38,15 @@ uv run trec-evaluate run-experiment --config bm25_only --limit-topics 1
 uv run trec-evaluate eval-runs --run-dir runs/latest --trec-eval tools/trec_eval/trec_eval
 ```
 
+BM25 with cached LLM query expansion. This calls the LLM once per topic and
+saves expanded terms under `cache/query_expansion/`:
+
+```bash
+uv sync --extra llm
+uv run trec-evaluate run-experiment --config bm25_expanded --limit-topics 1
+uv run trec-evaluate eval-runs --run-dir runs/latest --trec-eval tools/trec_eval/trec_eval
+```
+
 BM25 plus one neural reranker. Use `bm25_minilm_l12` for the thesis default:
 
 ```bash
@@ -55,8 +64,9 @@ uv run trec-evaluate run-experiment --config bm25_minilm_l12_llm --limit-topics 
 uv run trec-evaluate eval-runs --run-dir runs/latest --trec-eval tools/trec_eval/trec_eval
 ```
 
-Available neural reranker configs:
+Available experiment configs:
 
+- `bm25_expanded`: BM25 after cached LLM synonym/related-concept expansion
 - `bm25_minilm_l6`: `cross-encoder/ms-marco-MiniLM-L6-v2`
 - `bm25_medcpt`: `ncbi/MedCPT-Cross-Encoder`
 - `bm25_minilm_l12`: `cross-encoder/ms-marco-MiniLM-L12-v2`

@@ -2,6 +2,7 @@ from pathlib import Path
 
 from trec_evaluate.export import export_tables
 from trec_evaluate.metrics import parse_trec_eval_output, write_csv
+from trec_evaluate.query_expansion import QueryExpander
 from trec_evaluate.rerank import Candidate
 
 
@@ -54,3 +55,18 @@ def test_rerank_preserves_tail():
     ranked = rerank_candidates("query", candidates, FakeReranker(), window=2)
     assert [c.doc_id for c in ranked] == ["B", "A", "C"]
 
+
+def test_query_expansion_builds_bm25_query_without_inferred_facts():
+    expander = QueryExpander(max_terms_per_category=2, use_related_concepts=False)
+    terms = expander._terms_from_response(
+        {
+            "diseases": ["non-small cell lung cancer", "NSCLC", "extra ignored"],
+            "biomarkers": ["EGFR"],
+            "related_concepts": ["lung neoplasm"],
+        }
+    )
+    query = expander._build_query("disease: lung cancer", terms)
+    assert "disease: lung cancer" in query
+    assert "non-small cell lung cancer NSCLC" in query
+    assert "EGFR" in query
+    assert "lung neoplasm" not in query

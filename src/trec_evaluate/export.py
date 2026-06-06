@@ -7,6 +7,7 @@ from pathlib import Path
 
 DISPLAY_NAMES = {
     "bm25_only": "BM25 only",
+    "bm25_expanded": "BM25 + LLM query expansion",
     "bm25_minilm_l6": "BM25 + MiniLM-L6",
     "bm25_minilm_l12": "BM25 + MiniLM-L12",
     "bm25_medcpt": "BM25 + MedCPT Cross-Encoder",
@@ -71,13 +72,21 @@ def _trec_eval_rows(metrics: dict[str, dict[str, str]]) -> list[dict[str, str]]:
 def _reranker_rows(metrics: dict[str, dict[str, str]], latency: dict[str, float]) -> list[dict[str, str]]:
     flows = {
         "bm25_only": "Top 1000 -> Top 10",
+        "bm25_expanded": "LLM expansion -> Top 1000 -> Top 10",
         "bm25_minilm_l6": "Top 1000 -> Top 100",
         "bm25_medcpt": "Top 1000 -> Top 100",
         "bm25_minilm_l12": "Top 1000 -> Top 100",
         "bm25_minilm_l12_llm": "Top 1000 -> Top 100 -> Top 10",
     }
     rows: list[dict[str, str]] = []
-    for config in ["bm25_only", "bm25_minilm_l6", "bm25_medcpt", "bm25_minilm_l12", "bm25_minilm_l12_llm"]:
+    for config in [
+        "bm25_only",
+        "bm25_expanded",
+        "bm25_minilm_l6",
+        "bm25_medcpt",
+        "bm25_minilm_l12",
+        "bm25_minilm_l12_llm",
+    ]:
         row = metrics.get(config, {})
         rows.append(
             {

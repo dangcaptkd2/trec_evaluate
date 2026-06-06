@@ -27,6 +27,12 @@ uv sync --extra rerank --extra llm
 uv pip install --reinstall "transformers>=4.40.0,<5"
 ```
 
+Nếu chỉ cần chạy BM25 với mở rộng truy vấn bằng LLM:
+
+```bash
+uv sync --extra llm
+```
+
 ## 2. Tải dữ liệu TREC 2023
 
 ```bash
@@ -75,6 +81,13 @@ uv run trec-evaluate run-experiment --config bm25_only --limit-topics 1
 uv run trec-evaluate eval-runs --run-dir runs/latest --trec-eval tools/trec_eval/trec_eval
 ```
 
+BM25 + mở rộng truy vấn bằng LLM. Bước này gọi LLM một lần cho mỗi topic và cache kết quả ở `cache/query_expansion/`:
+
+```bash
+uv run trec-evaluate run-experiment --config bm25_expanded --limit-topics 1
+uv run trec-evaluate eval-runs --run-dir runs/latest --trec-eval tools/trec_eval/trec_eval
+```
+
 BM25 + một neural reranker, khuyến nghị test `bm25_minilm_l12` vì đây là reranker mặc định của luận văn:
 
 ```bash
@@ -98,9 +111,10 @@ model: gpt-4.1-nano
 
 Nhớ đặt `OPENAI_API_KEY` trong `.env` trước khi chạy config có LLM.
 
-## 6. Các config reranker hiện có
+## 6. Các config thí nghiệm hiện có
 
 ```text
+bm25_expanded  -> BM25 + cached LLM query expansion
 bm25_minilm_l6  -> cross-encoder/ms-marco-MiniLM-L6-v2
 bm25_medcpt  -> ncbi/MedCPT-Cross-Encoder
 bm25_minilm_l12 -> cross-encoder/ms-marco-MiniLM-L12-v2
@@ -123,17 +137,61 @@ uv run trec-evaluate eval-runs --run-dir runs/latest --trec-eval tools/trec_eval
 uv run trec-evaluate export-tables --run-dir runs/latest
 ```
 
-## 8. Chạy full một neural reranker
+## 8. Chạy từng config cần cho thí nghiệm
 
-Ví dụ MiniLM-L12:
+Khuyến nghị chạy từng config vào cùng một thư mục để có thể dừng/chạy tiếp nếu máy yếu. Các lệnh dưới đây dùng chung `RUN_DIR`, sau mỗi config sẽ chạy `eval-runs` để cập nhật `metrics.csv`.
 
 ```bash
-uv run trec-evaluate run-experiment --config bm25_minilm_l12
-uv run trec-evaluate eval-runs --run-dir runs/latest --trec-eval tools/trec_eval/trec_eval
-uv run trec-evaluate export-tables --run-dir runs/latest
+RUN_DIR=runs/thesis_final
+TREC_EVAL=tools/trec_eval/trec_eval
+
+uv run trec-evaluate run-experiment --config bm25_only --run-dir $RUN_DIR
+uv run trec-evaluate eval-runs --run-dir $RUN_DIR --trec-eval $TREC_EVAL
+
+uv run trec-evaluate run-experiment --config bm25_expanded --run-dir $RUN_DIR
+uv run trec-evaluate eval-runs --run-dir $RUN_DIR --trec-eval $TREC_EVAL
+
+uv run trec-evaluate run-experiment --config bm25_minilm_l6 --run-dir $RUN_DIR
+uv run trec-evaluate eval-runs --run-dir $RUN_DIR --trec-eval $TREC_EVAL
+
+uv run trec-evaluate run-experiment --config bm25_medcpt --run-dir $RUN_DIR
+uv run trec-evaluate eval-runs --run-dir $RUN_DIR --trec-eval $TREC_EVAL
+
+uv run trec-evaluate run-experiment --config bm25_minilm_l12 --run-dir $RUN_DIR
+uv run trec-evaluate eval-runs --run-dir $RUN_DIR --trec-eval $TREC_EVAL
+
+uv run trec-evaluate run-experiment --config bm25_llm --run-dir $RUN_DIR
+uv run trec-evaluate eval-runs --run-dir $RUN_DIR --trec-eval $TREC_EVAL
+
+uv run trec-evaluate run-experiment --config bm25_minilm_l12_llm --run-dir $RUN_DIR
+uv run trec-evaluate eval-runs --run-dir $RUN_DIR --trec-eval $TREC_EVAL
 ```
 
-## 9. Chạy full toàn bộ thí nghiệm
+## 9. Tạo bảng kết quả cuối cùng
+
+Sau khi đã chạy xong các config cần thiết, xuất bảng `.csv`, `.md`, `.tex`:
+
+```bash
+RUN_DIR=runs/thesis_final
+
+uv run trec-evaluate export-tables --run-dir $RUN_DIR
+```
+
+Kết quả sẽ nằm ở:
+
+```text
+runs/thesis_final/tables/table_trec_eval.csv
+runs/thesis_final/tables/table_trec_eval.md
+runs/thesis_final/tables/table_trec_eval.tex
+runs/thesis_final/tables/table_reranker_selection.csv
+runs/thesis_final/tables/table_reranker_selection.md
+runs/thesis_final/tables/table_reranker_selection.tex
+runs/thesis_final/tables/table_ablation.csv
+runs/thesis_final/tables/table_ablation.md
+runs/thesis_final/tables/table_ablation.tex
+```
+
+## 10. Chạy full toàn bộ thí nghiệm bằng một lệnh
 
 Lệnh này chạy tất cả config:
 
@@ -147,6 +205,7 @@ Các config trong `all`:
 
 ```text
 bm25_only
+bm25_expanded
 bm25_minilm_l6
 bm25_medcpt
 bm25_minilm_l12
@@ -154,7 +213,7 @@ bm25_llm
 bm25_minilm_l12_llm
 ```
 
-## 10. Output cần xem
+## 11. Output cần xem
 
 Sau mỗi lần chạy, output mới nhất nằm ở:
 
