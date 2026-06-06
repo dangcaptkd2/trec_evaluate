@@ -24,6 +24,7 @@ Nếu cần chạy neural reranker + LLM reranker:
 
 ```bash
 uv sync --extra rerank --extra llm
+uv pip install --reinstall "transformers>=4.40.0,<5"
 ```
 
 ## 2. Tải dữ liệu TREC 2023
@@ -71,20 +72,20 @@ BM25 only:
 
 ```bash
 uv run trec-evaluate run-experiment --config bm25_only --limit-topics 1
-uv run trec-evaluate eval-runs --run-dir runs/latest --trec-eval tools/trec_eval/trec_evaltrec_eval
+uv run trec-evaluate eval-runs --run-dir runs/latest --trec-eval tools/trec_eval/trec_eval
 ```
 
-BM25 + một neural reranker, khuyến nghị test `bm25_minilm` trước:
+BM25 + một neural reranker, khuyến nghị test `bm25_minilm_l12` vì đây là reranker mặc định của luận văn:
 
 ```bash
-uv run trec-evaluate run-experiment --config bm25_minilm --limit-topics 1
-uv run trec-evaluate eval-runs --run-dir runs/latest --trec-eval tools/trec_eval/trec_evaltrec_eval
+uv run trec-evaluate run-experiment --config bm25_minilm_l12 --limit-topics 1
+uv run trec-evaluate eval-runs --run-dir runs/latest --trec-eval tools/trec_eval/trec_eval
 ```
 
-BM25 + Jina reranker + OpenAI LLM reranker:
+BM25 + MiniLM-L12 reranker + OpenAI LLM reranker:
 
 ```bash
-uv run trec-evaluate run-experiment --config bm25_jina_llm --limit-topics 1
+uv run trec-evaluate run-experiment --config bm25_minilm_l12_llm --limit-topics 1
 uv run trec-evaluate eval-runs --run-dir runs/latest --trec-eval tools/trec_eval/trec_eval
 ```
 
@@ -100,16 +101,15 @@ Nhớ đặt `OPENAI_API_KEY` trong `.env` trước khi chạy config có LLM.
 ## 6. Các config reranker hiện có
 
 ```text
-bm25_minilm  -> cross-encoder/ms-marco-MiniLM-L6-v2
+bm25_minilm_l6  -> cross-encoder/ms-marco-MiniLM-L6-v2
 bm25_medcpt  -> ncbi/MedCPT-Cross-Encoder
-bm25_bge     -> BAAI/bge-reranker-v2-m3
-bm25_jina    -> jinaai/jina-reranker-v2-base-multilingual
+bm25_minilm_l12 -> cross-encoder/ms-marco-MiniLM-L12-v2
 ```
 
 Chạy thử một model bất kỳ:
 
 ```bash
-uv run trec-evaluate run-experiment --config bm25_bge --limit-topics 1
+uv run trec-evaluate run-experiment --config bm25_medcpt --limit-topics 1
 uv run trec-evaluate eval-runs --run-dir runs/latest --trec-eval tools/trec_eval/trec_eval
 ```
 
@@ -125,10 +125,10 @@ uv run trec-evaluate export-tables --run-dir runs/latest
 
 ## 8. Chạy full một neural reranker
 
-Ví dụ Jina:
+Ví dụ MiniLM-L12:
 
 ```bash
-uv run trec-evaluate run-experiment --config bm25_jina
+uv run trec-evaluate run-experiment --config bm25_minilm_l12
 uv run trec-evaluate eval-runs --run-dir runs/latest --trec-eval tools/trec_eval/trec_eval
 uv run trec-evaluate export-tables --run-dir runs/latest
 ```
@@ -147,12 +147,11 @@ Các config trong `all`:
 
 ```text
 bm25_only
-bm25_minilm
+bm25_minilm_l6
 bm25_medcpt
-bm25_bge
-bm25_jina
+bm25_minilm_l12
 bm25_llm
-bm25_jina_llm
+bm25_minilm_l12_llm
 ```
 
 ## 10. Output cần xem
@@ -182,4 +181,3 @@ runs/latest/tables/table_trec_eval.tex
 runs/latest/tables/table_reranker_selection.tex
 runs/latest/tables/table_ablation.tex
 ```
-

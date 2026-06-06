@@ -15,14 +15,22 @@ from .topics import Topic, parse_topics
 from .trial_text import build_trial_text
 
 
+ALL_CONFIGS = (
+    "bm25_only",
+    "bm25_minilm_l6",
+    "bm25_medcpt",
+    "bm25_minilm_l12",
+    "bm25_llm",
+    "bm25_minilm_l12_llm",
+)
+
 CONFIGS = {
     "bm25_only",
-    "bm25_minilm",
+    "bm25_minilm_l6",
+    "bm25_minilm_l12",
     "bm25_medcpt",
-    "bm25_bge",
-    "bm25_jina",
     "bm25_llm",
-    "bm25_jina_llm",
+    "bm25_minilm_l12_llm",
 }
 
 
@@ -59,7 +67,7 @@ def run_experiment(
     llm_provider: str | None = None,
     llm_model: str | None = None,
 ) -> ExperimentResult:
-    names = sorted(CONFIGS) if config_name == "all" else [config_name]
+    names = list(ALL_CONFIGS) if config_name == "all" else [config_name]
     unknown = [name for name in names if name not in CONFIGS]
     if unknown:
         raise ValueError(f"Unknown config(s): {', '.join(unknown)}")
@@ -79,13 +87,15 @@ def run_experiment(
     client = ElasticsearchHttpClient(es_url or es_cfg.get("url", "http://localhost:9200"))
     index = es_index or es_cfg.get("index")
     mapping = client.mapping(index)
-    fields = discover_text_fields(mapping, es_cfg.get("fields", ["text"]))
+    fields = _apply_field_boosts(discover_text_fields(mapping, es_cfg.get("fields", ["text"])), es_cfg)
 
     cache_dir = Path(exp_cfg.get("cache_dir", "cache"))
     top_k = int(exp_cfg.get("top_k_bm25", 1000))
     neural_window = int(exp_cfg.get("neural_window", 1000))
+    neural_keep = int(exp_cfg.get("neural_keep", 100))
     llm_direct_window = int(exp_cfg.get("llm_direct_window", 100))
     llm_final_window = int(exp_cfg.get("llm_final_window", 100))
+    llm_keep = int(exp_cfg.get("llm_keep", 10))
 
     run_files: list[Path] = []
     latency_rows: list[dict[str, str]] = []
@@ -112,7 +122,7 @@ def run_experiment(
                 temperature=float(llm_cfg.get("temperature", 0)),
                 max_retries=int(llm_cfg.get("max_retries", 3)),
             )
-            if name in {"bm25_llm", "bm25_jina_llm"}
+            if name in {"bm25_llm", "bm25_minilm_l12_llm"}
             else None
         )
 
@@ -129,14 +139,14 @@ def run_experiment(
             ranked = candidates
             if neural_reranker is not None:
                 neural_started = time.perf_counter()
-                ranked = rerank_candidates(query, ranked, neural_reranker, window=neural_window)
-                latency_rows.append(_latency_row(name, topic.number, "neural", neural_started, min(neural_window, len(ranked))))
+                ranked = rerank_candidates(query, ranked, neural_reranker, window=neural_window, keep=neural_keep)
+                latency_rows.append(_latency_row(name, topic.number, "neural", neural_started, min(neural_keep, len(ranked))))
 
             if llm_reranker is not None:
                 llm_started = time.perf_counter()
                 window = llm_direct_window if name == "bm25_llm" else llm_final_window
-                ranked = llm_rerank_candidates(query, ranked, llm_reranker, window=window)
-                latency_rows.append(_latency_row(name, topic.number, "llm", llm_started, min(window, len(ranked))))
+                ranked = llm_rerank_candidates(query, ranked, llm_reranker, window=window, keep=llm_keep)
+                latency_rows.append(_latency_row(name, topic.number, "llm", llm_started, min(llm_keep, len(ranked))))
 
             if name == "bm25_only":
                 entries_by_topic[topic.number] = [(candidate.doc_id, candidate.score) for candidate in ranked]
@@ -165,13 +175,22 @@ def _retrieve_candidates(client: ElasticsearchHttpClient, index: str, fields: li
     return candidates
 
 
-def _neural_model_for_config(name: str, model_cfg: dict[str, str]) -> str | None:
+def _apply_field_boosts(fields: list[str], es_cfg: dict[str, Any]) -> list[str]:
+    boosts = es_cfg.get("bm25", {}).get("field_boosts", {})
+    boosted_fields: list[str] = []
+    for field in fields:
+        base = field.split("^", 1)[0]
+        boost = boosts.get(base)
+        boosted_fields.append(f"{base}^{boost}" if boost and boost != 1 else base)
+    return boosted_fields
+
+
+def _neural_model_for_config(name: str, model_cfg: dict[str, Any]) -> str | None:
     return {
-        "bm25_minilm": model_cfg.get("minilm"),
+        "bm25_minilm_l6": model_cfg.get("minilm_l6"),
+        "bm25_minilm_l12": model_cfg.get("minilm_l12"),
         "bm25_medcpt": model_cfg.get("medcpt"),
-        "bm25_bge": model_cfg.get("bge"),
-        "bm25_jina": model_cfg.get("jina"),
-        "bm25_jina_llm": model_cfg.get("jina"),
+        "bm25_minilm_l12_llm": model_cfg.get("minilm_l12"),
     }.get(name)
 
 

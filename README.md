@@ -38,29 +38,28 @@ uv run trec-evaluate run-experiment --config bm25_only --limit-topics 1
 uv run trec-evaluate eval-runs --run-dir runs/latest --trec-eval tools/trec_eval/trec_eval
 ```
 
-BM25 plus one neural reranker. Use `bm25_jina` for the thesis default:
+BM25 plus one neural reranker. Use `bm25_minilm_l12` for the thesis default:
 
 ```bash
 uv sync --extra rerank
-uv run trec-evaluate run-experiment --config bm25_jina --limit-topics 1
+uv run trec-evaluate run-experiment --config bm25_minilm_l12 --limit-topics 1
 uv run trec-evaluate eval-runs --run-dir runs/latest --trec-eval tools/trec_eval/trec_eval
 ```
 
-BM25 plus Jina reranker plus OpenAI LLM reranker. The default LLM model is
+BM25 plus MiniLM-L12 reranker plus OpenAI LLM reranker. The default LLM model is
 `gpt-4.1-nano`:
 
 ```bash
 uv sync --extra rerank --extra llm
-uv run trec-evaluate run-experiment --config bm25_jina_llm --limit-topics 1
+uv run trec-evaluate run-experiment --config bm25_minilm_l12_llm --limit-topics 1
 uv run trec-evaluate eval-runs --run-dir runs/latest --trec-eval tools/trec_eval/trec_eval
 ```
 
 Available neural reranker configs:
 
-- `bm25_minilm`: `cross-encoder/ms-marco-MiniLM-L6-v2`
+- `bm25_minilm_l6`: `cross-encoder/ms-marco-MiniLM-L6-v2`
 - `bm25_medcpt`: `ncbi/MedCPT-Cross-Encoder`
-- `bm25_bge`: `BAAI/bge-reranker-v2-m3`
-- `bm25_jina`: `jinaai/jina-reranker-v2-base-multilingual`
+- `bm25_minilm_l12`: `cross-encoder/ms-marco-MiniLM-L12-v2`
 
 ## Outputs
 

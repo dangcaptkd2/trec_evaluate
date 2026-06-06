@@ -7,12 +7,11 @@ from pathlib import Path
 
 DISPLAY_NAMES = {
     "bm25_only": "BM25 only",
-    "bm25_minilm": "BM25 + MiniLM",
+    "bm25_minilm_l6": "BM25 + MiniLM-L6",
+    "bm25_minilm_l12": "BM25 + MiniLM-L12",
     "bm25_medcpt": "BM25 + MedCPT Cross-Encoder",
-    "bm25_bge": "BM25 + BGE reranker v2-m3",
-    "bm25_jina": "BM25 + Jina reranker v2 multilingual",
     "bm25_llm": "BM25 + LLM reranker",
-    "bm25_jina_llm": "BM25 + Jina reranker + LLM",
+    "bm25_minilm_l12_llm": "BM25 + MiniLM-L12 + LLM",
 }
 
 
@@ -51,7 +50,7 @@ def export_tables(run_dir: str | Path) -> list[Path]:
 
 
 def _trec_eval_rows(metrics: dict[str, dict[str, str]]) -> list[dict[str, str]]:
-    full = metrics.get("bm25_jina_llm", {})
+    full = metrics.get("bm25_minilm_l12_llm", {})
     return [
         {"Mô hình": "BM25 (baseline) [Rybinski et al.]", "nDCG@10": "0.6190", "P@10": "0.3300", "RR": "0.5630"},
         {
@@ -72,14 +71,13 @@ def _trec_eval_rows(metrics: dict[str, dict[str, str]]) -> list[dict[str, str]]:
 def _reranker_rows(metrics: dict[str, dict[str, str]], latency: dict[str, float]) -> list[dict[str, str]]:
     flows = {
         "bm25_only": "Top 1000 -> Top 10",
-        "bm25_minilm": "Top 1000 -> Top 100",
+        "bm25_minilm_l6": "Top 1000 -> Top 100",
         "bm25_medcpt": "Top 1000 -> Top 100",
-        "bm25_bge": "Top 1000 -> Top 100",
-        "bm25_jina": "Top 1000 -> Top 100",
-        "bm25_jina_llm": "Top 1000 -> Top 100 -> Top 10",
+        "bm25_minilm_l12": "Top 1000 -> Top 100",
+        "bm25_minilm_l12_llm": "Top 1000 -> Top 100 -> Top 10",
     }
     rows: list[dict[str, str]] = []
-    for config in ["bm25_only", "bm25_minilm", "bm25_medcpt", "bm25_bge", "bm25_jina", "bm25_jina_llm"]:
+    for config in ["bm25_only", "bm25_minilm_l6", "bm25_medcpt", "bm25_minilm_l12", "bm25_minilm_l12_llm"]:
         row = metrics.get(config, {})
         rows.append(
             {
@@ -98,9 +96,9 @@ def _reranker_rows(metrics: dict[str, dict[str, str]], latency: dict[str, float]
 def _ablation_rows(metrics: dict[str, dict[str, str]]) -> list[dict[str, str]]:
     configs = [
         ("(1) BM25 only", "bm25_only"),
-        ("(2) BM25 + neural reranker", "bm25_jina"),
+        ("(2) BM25 + neural reranker tốt nhất (MiniLM-L12)", "bm25_minilm_l12"),
         ("(3) BM25 + LLM reranker", "bm25_llm"),
-        ("(4) BM25 + neural reranker + LLM reranker", "bm25_jina_llm"),
+        ("(4) BM25 + MiniLM-L12 + LLM reranker", "bm25_minilm_l12_llm"),
     ]
     return [
         {
@@ -175,4 +173,3 @@ def _tex_escape(value: str) -> str:
         .replace("#", r"\#")
         .replace("_", r"\_")
     )
-

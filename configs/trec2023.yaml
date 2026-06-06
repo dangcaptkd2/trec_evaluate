@@ -3,6 +3,19 @@ data:
   qrels_url: "https://trec.nist.gov/data/trials/qrels2023.txt"
   topics_path: "data/trec2023/topics2023.xml"
   qrels_path: "data/trec2023/qrels2023.txt"
+  evaluation_sources:
+    trec2022:
+      topics_path: "data/trec2022/topics2022.xml"
+      qrels_path: "data/trec2022/qrels2022.txt"
+    trec2023:
+      topics_path: "data/trec2023/topics2023.xml"
+      qrels_path: "data/trec2023/qrels2023.txt"
+  bilingual_cases:
+    count: 50
+    languages:
+      - "en"
+      - "vi"
+    translation_strategy: "on_the_fly_query_translation"
 
 elasticsearch:
   url: "http://localhost:9200"
@@ -27,6 +40,26 @@ elasticsearch:
     - "general_keywords"
     - "drug_name"
     - "drug_keywords"
+  bm25:
+    candidate_top_k: 1000
+    field_boosts:
+      title: 3
+      brief_title: 3
+      official_title: 2
+      brief_summary: 3
+      detailed_description: 1
+      condition: 2
+      conditions: 2
+      intervention_name: 1
+      interventions: 1
+      eligibility_criteria: 1
+      keywords: 1
+      mesh_terms_conditions: 1
+      mesh_terms_interventions: 1
+      sites_text: 1
+    location_fields:
+      - "facility_names"
+      - "sites_text"
 
 experiment:
   top_k_bm25: 1000
@@ -37,18 +70,75 @@ experiment:
   llm_keep: 10
   output_dir: "runs"
   cache_dir: "cache"
+  cross_encoder_batch_size: 16
+  cross_encoder_max_length: 512
+  metrics:
+    - "nDCG@10"
+    - "P@10"
+    - "RR"
+    - "Recall@100"
+    - "Latency/query"
+  qualitative_judge:
+    scale_min: 1.0
+    scale_max: 5.0
+    criteria:
+      - "Depth"
+      - "Relevance"
+      - "Clarity"
+      - "Completeness"
+    count_metric: "Valid Trial ID average"
+  thesis_runs:
+    reranker_selection:
+      - "bm25_only"
+      - "bm25_minilm_l6"
+      - "bm25_medcpt"
+      - "bm25_minilm_l12"
+      - "bm25_minilm_l12_llm"
+    ablation:
+      - "bm25_only"
+      - "bm25_minilm_l12"
+      - "bm25_llm"
+      - "bm25_minilm_l12_llm"
+    workflow_comparison:
+      - "chatgpt_baseline"
+      - "workflow_gpt_4_1_nano"
+      - "workflow_medgemma_4b_it"
 
 trec_eval:
   path: "trec_eval"
 
 models:
-  minilm: "cross-encoder/ms-marco-MiniLM-L6-v2"
+  minilm_l6: "cross-encoder/ms-marco-MiniLM-L6-v2"
+  minilm_l12: "cross-encoder/ms-marco-MiniLM-L12-v2"
+  default_neural_reranker: "cross-encoder/ms-marco-MiniLM-L12-v2"
   medcpt: "ncbi/MedCPT-Cross-Encoder"
-  bge: "BAAI/bge-reranker-v2-m3"
-  jina: "jinaai/jina-reranker-v2-base-multilingual"
+  chatgpt_baseline:
+    provider: "openai"
+    model: "gpt-4.1-nano"
+    rag_enabled: false
+  workflow_gpt_4_1_nano:
+    provider: "openai"
+    model: "gpt-4.1-nano"
+    rag_enabled: true
+    neural_reranker: "cross-encoder/ms-marco-MiniLM-L12-v2"
+  workflow_medgemma_4b_it:
+    provider: "vllm"
+    model: "google/medgemma-4b-it"
+    served_model_name: "medgemma-4b-it"
+    rag_enabled: true
+    neural_reranker: "cross-encoder/ms-marco-MiniLM-L12-v2"
 
 llm:
   provider: "openai"
   model: "gpt-4.1-nano"
   temperature: 0
   max_retries: 3
+  eligibility_reranker:
+    final_top_n: 10
+    output_format: "json"
+    labels:
+      - "eligible"
+      - "excluded"
+      - "unknown"
+    score_min: 0.0
+    score_max: 1.0

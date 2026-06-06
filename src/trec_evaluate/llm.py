@@ -10,15 +10,22 @@ from .cache import key_for, load_json, save_json
 from .rerank import Candidate
 
 
-PROMPT = """You are ranking clinical trials for a TREC Clinical Trials patient topic.
-Score the trial for patient-trial matching usefulness.
-Return only JSON: {"score": number, "label": "eligible|excluded|unknown", "reason": "short reason"}.
+PROMPT = """You are a clinical trial eligibility expert. Evaluate if this patient matches the trial eligibility criteria.
 
-Patient topic:
+PATIENT PROFILE:
 {query}
 
-Trial:
+TRIAL:
 {trial}
+
+Rate the match on a scale of 0.0 to 1.0 where:
+- 1.0 = Patient clearly meets all inclusion criteria and does not meet any exclusion criteria
+- 0.8-0.9 = Patient likely eligible with minor uncertainties
+- 0.5-0.7 = Some criteria match but significant uncertainties or potential exclusions
+- 0.0-0.4 = Patient likely does not meet key criteria
+
+Respond only with JSON:
+{{"score": <float between 0.0 and 1.0>, "label": "eligible|ineligible|unknown", "reasoning": "<1-2 sentences, maximum 50 words>"}}
 """
 
 
@@ -60,11 +67,14 @@ class LlmReranker:
         raise RuntimeError(f"LLM scoring failed for {candidate.doc_id}: {last_error}") from last_error
 
     def _call(self, prompt: str) -> dict[str, Any]:
-        if self.provider == "openai":
+        if self.provider in {"openai", "vllm"}:
             from openai import OpenAI
 
             kwargs: dict[str, str] = {}
-            if os.getenv("OPENAI_BASE_URL"):
+            if self.provider == "vllm":
+                kwargs["base_url"] = os.getenv("VLLM_BASE_URL", "http://localhost:8000/v1")
+                kwargs["api_key"] = os.getenv("VLLM_API_KEY", "EMPTY")
+            elif os.getenv("OPENAI_BASE_URL"):
                 kwargs["base_url"] = os.environ["OPENAI_BASE_URL"]
             client = OpenAI(**kwargs)
             response = client.chat.completions.create(
