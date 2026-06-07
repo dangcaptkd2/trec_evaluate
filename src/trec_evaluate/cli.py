@@ -32,6 +32,7 @@ def main(argv: list[str] | None = None) -> int:
     p_run.add_argument("--limit-topics", type=int)
     p_run.add_argument("--llm-provider")
     p_run.add_argument("--llm-model")
+    p_run.add_argument("--no-progress", action="store_true", help="Disable experiment progress logs")
 
     p_eval = subparsers.add_parser("eval-runs")
     p_eval.add_argument("--run-dir", default="runs/latest")
@@ -59,6 +60,7 @@ def main(argv: list[str] | None = None) -> int:
                 limit_topics=args.limit_topics,
                 llm_provider=args.llm_provider,
                 llm_model=args.llm_model,
+                progress=not args.no_progress,
             )
             print(f"Run directory: {result.run_dir}")
             for run_file in result.run_files:

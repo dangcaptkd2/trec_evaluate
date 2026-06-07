@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -35,7 +36,12 @@ class CrossEncoderReranker:
         self._model = (torch, device, tokenizer, model)
         return self._model
 
-    def score(self, query: str, candidates: list[Candidate]) -> list[float]:
+    def score(
+        self,
+        query: str,
+        candidates: list[Candidate],
+        progress: Callable[[int, int], None] | None = None,
+    ) -> list[float]:
         scores: list[float | None] = [None] * len(candidates)
         missing: list[tuple[int, Candidate, Path]] = []
         for idx, candidate in enumerate(candidates):
@@ -68,14 +74,23 @@ class CrossEncoderReranker:
                 for (idx, candidate, cache_path), score in zip(batch, batch_scores):
                     scores[idx] = float(score)
                     save_json(cache_path, {"doc_id": candidate.doc_id, "model": self.model_name, "score": float(score)})
+                if progress is not None:
+                    progress(min(start + len(batch), len(missing)), len(missing))
 
         return [float(score or 0.0) for score in scores]
 
 
-def rerank_candidates(query: str, candidates: list[Candidate], reranker: CrossEncoderReranker, window: int, keep: int | None = None) -> list[Candidate]:
+def rerank_candidates(
+    query: str,
+    candidates: list[Candidate],
+    reranker: CrossEncoderReranker,
+    window: int,
+    keep: int | None = None,
+    progress: Callable[[int, int], None] | None = None,
+) -> list[Candidate]:
     head = candidates[:window]
     tail = candidates[window:]
-    scores = reranker.score(query, head)
+    scores = reranker.score(query, head, progress=progress)
     reranked = [
         Candidate(doc_id=candidate.doc_id, score=score, text=candidate.text)
         for candidate, score in zip(head, scores)
@@ -84,4 +99,3 @@ def rerank_candidates(query: str, candidates: list[Candidate], reranker: CrossEn
     if keep is not None:
         return reranked[:keep] + reranked[keep:] + tail
     return reranked + tail
-

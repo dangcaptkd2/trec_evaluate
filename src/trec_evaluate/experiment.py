@@ -4,6 +4,7 @@ import csv
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
+import sys
 import time
 from typing import Any
 
@@ -74,6 +75,7 @@ def run_experiment(
     limit_topics: int | None = None,
     llm_provider: str | None = None,
     llm_model: str | None = None,
+    progress: bool = True,
 ) -> ExperimentResult:
     names = list(ALL_CONFIGS) if config_name == "all" else [config_name]
     unknown = [name for name in names if name not in CONFIGS]
@@ -111,7 +113,10 @@ def run_experiment(
     latency_rows: list[dict[str, str]] = []
     bm25_cache: dict[str, list[Candidate]] = {}
 
-    for name in names:
+    total_configs = len(names)
+    total_topics = len(topics)
+    for config_idx, name in enumerate(names, start=1):
+        _progress(progress, f"[config {config_idx}/{total_configs}] {name}: {total_topics} topic(s)")
         entries_by_topic: dict[str, list[tuple[str, float]]] = {}
         query_expander = (
             QueryExpander(
@@ -149,30 +154,47 @@ def run_experiment(
             else None
         )
 
-        for topic in topics:
+        for topic_idx, topic in enumerate(topics, start=1):
             started = time.perf_counter()
             query = topic.to_query_text(include_template=False)
+            topic_prefix = f"[{name}] topic {topic_idx}/{total_topics} {topic.number}"
+            _progress(progress, f"{topic_prefix}: started")
             if query_expander is not None:
+                _progress(progress, f"{topic_prefix}: expanding query")
                 expansion_started = time.perf_counter()
                 query = query_expander.expand(topic.number, query)
                 latency_rows.append(_latency_row(name, topic.number, "query_expansion", expansion_started, 1))
             bm25_key = key_for(topic.number, query)
             candidates = bm25_cache.get(bm25_key)
             if candidates is None:
+                _progress(progress, f"{topic_prefix}: retrieving BM25 top {top_k}")
                 search_started = time.perf_counter()
                 candidates = _retrieve_candidates(client, index, fields, query, top_k, query_mode)
                 latency_rows.append(_latency_row(name, topic.number, "bm25", search_started, len(candidates)))
                 bm25_cache[bm25_key] = candidates
+            else:
+                _progress(progress, f"{topic_prefix}: reusing BM25 cache ({len(candidates)} candidates)")
 
             ranked = candidates
             if neural_reranker is not None:
+                window_size = min(neural_window, len(ranked))
+                _progress(progress, f"{topic_prefix}: neural reranking top {window_size}")
                 neural_started = time.perf_counter()
-                ranked = rerank_candidates(query, ranked, neural_reranker, window=neural_window, keep=neural_keep)
+                ranked = rerank_candidates(
+                    query,
+                    ranked,
+                    neural_reranker,
+                    window=neural_window,
+                    keep=neural_keep,
+                    progress=_neural_progress(progress, topic_prefix),
+                )
+                _progress(progress, "")
                 latency_rows.append(_latency_row(name, topic.number, "neural", neural_started, min(neural_keep, len(ranked))))
 
             if llm_reranker is not None:
                 llm_started = time.perf_counter()
                 window = llm_direct_window if name == "bm25_llm" else llm_final_window
+                _progress(progress, f"{topic_prefix}: LLM reranking top {min(window, len(ranked))}")
                 ranked = llm_rerank_candidates(query, ranked, llm_reranker, window=window, keep=llm_keep)
                 latency_rows.append(_latency_row(name, topic.number, "llm", llm_started, min(llm_keep, len(ranked))))
 
@@ -184,10 +206,12 @@ def run_experiment(
                     for idx, candidate in enumerate(ranked)
                 ]
             latency_rows.append(_latency_row(name, topic.number, "total", started, len(ranked)))
+            _progress(progress, f"{topic_prefix}: done in {time.perf_counter() - started:.1f}s ({len(ranked)} results)")
 
         run_path = output / f"{name}.run"
         write_run(run_path, entries_by_topic, run_name=name)
         run_files.append(run_path)
+        _progress(progress, f"[config {config_idx}/{total_configs}] wrote {run_path}")
 
     _write_latency(output / "latency.csv", latency_rows)
     return ExperimentResult(output, run_files, latency_rows)
@@ -255,3 +279,15 @@ def _write_latency(path: Path, rows: list[dict[str, str]]) -> None:
         writer = csv.DictWriter(f, fieldnames=["config", "topic", "stage", "candidates", "seconds"])
         writer.writeheader()
         writer.writerows(rows)
+
+
+def _progress(enabled: bool, message: str, end: str = "\n") -> None:
+    if enabled:
+        print(message, file=sys.stderr, end=end, flush=True)
+
+
+def _neural_progress(enabled: bool, topic_prefix: str):
+    def report(done: int, total: int) -> None:
+        _progress(enabled, f"\r{topic_prefix}: neural scored {done}/{total} uncached candidates", end="")
+
+    return report if enabled else None
