@@ -4,24 +4,6 @@ from typing import Any
 
 
 TRIAL_TEXT_FIELDS = [
-    "title",
-    "brief_title",
-    "official_title",
-    "brief_summary",
-    "detailed_description",
-    "condition",
-    "conditions",
-    "intervention_name",
-    "interventions",
-    "eligibility_criteria",
-    "primary_outcome",
-    "keywords",
-    "mesh_terms_conditions",
-    "mesh_terms_interventions",
-    "sites_text",
-    "general_keywords",
-    "drug_name",
-    "drug_keywords",
     "text",
 ]
 

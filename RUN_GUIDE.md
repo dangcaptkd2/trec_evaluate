@@ -61,7 +61,7 @@ tools/trec_eval/trec_eval
 
 ## 4. Kiểm tra Elasticsearch
 
-Default index hiện tại trong `configs/trec2023.yaml` là `trec2023_ctnlp` trên RunPod Elasticsearch. Index này không có field `text` đơn như bản cũ, nên BM25 dùng `query_mode: cross_fields` trên các field CTnlp để mô phỏng một tài liệu lâm sàng gộp.
+Default index hiện tại trong `configs/trec2023.yaml` là `trec2023_ctnlp` trên RunPod Elasticsearch. BM25 dùng `query_mode: text_match` trên field `text`, và neural reranker cũng dùng field `text` làm nội dung trial.
 
 ```bash
 uv run trec-evaluate inspect-es

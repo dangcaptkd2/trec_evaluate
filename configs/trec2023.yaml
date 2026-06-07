@@ -20,16 +20,9 @@ data:
 elasticsearch:
   url: "https://8t2muxa4qo42wo-9200.proxy.runpod.net"
   index: "trec2023_ctnlp"
-  query_mode: "cross_fields"
+  query_mode: "text_match"
   fields:
-    - "title"
-    - "official_title"
-    - "brief_summary"
-    - "conditions"
-    - "interventions"
-    - "eligibility_criteria"
-    - "keywords"
-    - "sites"
+    - "text"
   bm25:
     candidate_top_k: 1000
     field_boosts:

@@ -15,10 +15,10 @@ uv run trec-evaluate export-tables --run-dir runs/latest
 ```
 
 The default configuration uses the CTnlp-built Elasticsearch index
-`trec2023_ctnlp` at the configured RunPod URL. This remote index does not expose
-the old single `text` field, so BM25 uses `cross_fields` over the CTnlp-derived
-trial fields to approximate one combined clinical document. Override `--es-url`
-or `--es-index` only if you rebuild the data into a different index.
+`trec2023_ctnlp` at the configured RunPod URL. BM25 uses a single-field
+`match` query over the trial `text` field, and neural rerankers receive the same
+`text` field as the trial representation. Override `--es-url` or `--es-index`
+only if you rebuild the data into a different index.
 
 To install the official NIST evaluator locally:
 
