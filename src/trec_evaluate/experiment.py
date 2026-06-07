@@ -21,8 +21,10 @@ ALL_CONFIGS = (
     "bm25_only",
     "bm25_expanded",
     "bm25_minilm_l6",
+    "bm25_expanded_minilm_l6",
     "bm25_medcpt",
     "bm25_minilm_l12",
+    "bm25_expanded_minilm_l12",
     "bm25_llm",
     "bm25_minilm_l12_llm",
 )
@@ -31,7 +33,9 @@ CONFIGS = {
     "bm25_only",
     "bm25_expanded",
     "bm25_minilm_l6",
+    "bm25_expanded_minilm_l6",
     "bm25_minilm_l12",
+    "bm25_expanded_minilm_l12",
     "bm25_medcpt",
     "bm25_llm",
     "bm25_minilm_l12_llm",
@@ -219,7 +223,7 @@ def _apply_field_boosts(fields: list[str], es_cfg: dict[str, Any]) -> list[str]:
 
 
 def _uses_query_expansion(name: str, expansion_cfg: dict[str, Any]) -> bool:
-    if name == "bm25_expanded":
+    if name in {"bm25_expanded", "bm25_expanded_minilm_l6", "bm25_expanded_minilm_l12"}:
         return bool(expansion_cfg.get("enabled", True))
     return False
 
@@ -227,7 +231,9 @@ def _uses_query_expansion(name: str, expansion_cfg: dict[str, Any]) -> bool:
 def _neural_model_for_config(name: str, model_cfg: dict[str, Any]) -> str | None:
     return {
         "bm25_minilm_l6": model_cfg.get("minilm_l6"),
+        "bm25_expanded_minilm_l6": model_cfg.get("minilm_l6"),
         "bm25_minilm_l12": model_cfg.get("minilm_l12"),
+        "bm25_expanded_minilm_l12": model_cfg.get("minilm_l12"),
         "bm25_medcpt": model_cfg.get("medcpt"),
         "bm25_minilm_l12_llm": model_cfg.get("minilm_l12"),
     }.get(name)

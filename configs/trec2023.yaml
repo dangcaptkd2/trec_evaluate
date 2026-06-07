@@ -82,8 +82,10 @@ experiment:
       - "bm25_only"
       - "bm25_expanded"
       - "bm25_minilm_l6"
+      - "bm25_expanded_minilm_l6"
       - "bm25_medcpt"
       - "bm25_minilm_l12"
+      - "bm25_expanded_minilm_l12"
       - "bm25_minilm_l12_llm"
     ablation:
       - "bm25_only"

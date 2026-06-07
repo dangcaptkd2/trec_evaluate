@@ -57,6 +57,15 @@ uv run trec-evaluate run-experiment --config bm25_minilm_l12 --limit-topics 1
 uv run trec-evaluate eval-runs --run-dir runs/latest --trec-eval tools/trec_eval/trec_eval
 ```
 
+BM25 with cached LLM query expansion, then MiniLM reranking. If the expanded
+query already exists under `cache/query_expansion/`, the LLM is not called again:
+
+```bash
+uv sync --extra rerank --extra llm
+uv run trec-evaluate run-experiment --config bm25_expanded_minilm_l6 --limit-topics 1
+uv run trec-evaluate eval-runs --run-dir runs/latest --trec-eval tools/trec_eval/trec_eval
+```
+
 BM25 plus MiniLM-L12 reranker plus OpenAI LLM reranker. The default LLM model is
 `gpt-4.1-nano`:
 
@@ -70,8 +79,10 @@ Available experiment configs:
 
 - `bm25_expanded`: BM25 after cached LLM synonym/related-concept expansion
 - `bm25_minilm_l6`: `cross-encoder/ms-marco-MiniLM-L6-v2`
+- `bm25_expanded_minilm_l6`: cached LLM query expansion + MiniLM-L6 reranker
 - `bm25_medcpt`: `ncbi/MedCPT-Cross-Encoder`
 - `bm25_minilm_l12`: `cross-encoder/ms-marco-MiniLM-L12-v2`
+- `bm25_expanded_minilm_l12`: cached LLM query expansion + MiniLM-L12 reranker
 
 ## Outputs
 

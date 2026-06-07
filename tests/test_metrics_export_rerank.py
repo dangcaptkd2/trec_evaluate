@@ -1,6 +1,7 @@
 from pathlib import Path
 
 from trec_evaluate.export import export_tables
+from trec_evaluate.experiment import _neural_model_for_config, _uses_query_expansion
 from trec_evaluate.metrics import parse_trec_eval_output, write_csv
 from trec_evaluate.query_expansion import QueryExpander
 from trec_evaluate.rerank import Candidate
@@ -70,3 +71,16 @@ def test_query_expansion_builds_bm25_query_without_inferred_facts():
     assert "non-small cell lung cancer NSCLC" in query
     assert "EGFR" in query
     assert "lung neoplasm" not in query
+
+
+def test_expanded_neural_configs_use_expansion_and_minilm_models():
+    model_cfg = {
+        "minilm_l6": "cross-encoder/ms-marco-MiniLM-L6-v2",
+        "minilm_l12": "cross-encoder/ms-marco-MiniLM-L12-v2",
+    }
+
+    assert _uses_query_expansion("bm25_expanded_minilm_l6", {"enabled": True})
+    assert _uses_query_expansion("bm25_expanded_minilm_l12", {"enabled": True})
+    assert not _uses_query_expansion("bm25_minilm_l6", {"enabled": True})
+    assert _neural_model_for_config("bm25_expanded_minilm_l6", model_cfg) == model_cfg["minilm_l6"]
+    assert _neural_model_for_config("bm25_expanded_minilm_l12", model_cfg) == model_cfg["minilm_l12"]

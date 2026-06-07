@@ -96,6 +96,13 @@ uv run trec-evaluate run-experiment --config bm25_minilm_l12 --limit-topics 1
 uv run trec-evaluate eval-runs --run-dir runs/latest --trec-eval tools/trec_eval/trec_eval
 ```
 
+BM25 + mở rộng truy vấn bằng LLM cache + MiniLM reranker. Nếu expanded query đã có trong `cache/query_expansion/` thì lệnh này dùng cache, không gọi LLM lại:
+
+```bash
+uv run trec-evaluate run-experiment --config bm25_expanded_minilm_l6 --limit-topics 1
+uv run trec-evaluate eval-runs --run-dir runs/latest --trec-eval tools/trec_eval/trec_eval
+```
+
 BM25 + MiniLM-L12 reranker + OpenAI LLM reranker:
 
 ```bash
@@ -117,8 +124,10 @@ Nhớ đặt `OPENAI_API_KEY` trong `.env` trước khi chạy config có LLM.
 ```text
 bm25_expanded  -> BM25 + cached LLM query expansion
 bm25_minilm_l6  -> cross-encoder/ms-marco-MiniLM-L6-v2
+bm25_expanded_minilm_l6 -> cached LLM query expansion + cross-encoder/ms-marco-MiniLM-L6-v2
 bm25_medcpt  -> ncbi/MedCPT-Cross-Encoder
 bm25_minilm_l12 -> cross-encoder/ms-marco-MiniLM-L12-v2
+bm25_expanded_minilm_l12 -> cached LLM query expansion + cross-encoder/ms-marco-MiniLM-L12-v2
 ```
 
 Chạy thử một model bất kỳ:
@@ -155,10 +164,16 @@ uv run trec-evaluate eval-runs --run-dir $RUN_DIR --trec-eval $TREC_EVAL
 uv run trec-evaluate run-experiment --config bm25_minilm_l6 --run-dir $RUN_DIR
 uv run trec-evaluate eval-runs --run-dir $RUN_DIR --trec-eval $TREC_EVAL
 
+uv run trec-evaluate run-experiment --config bm25_expanded_minilm_l6 --run-dir $RUN_DIR
+uv run trec-evaluate eval-runs --run-dir $RUN_DIR --trec-eval $TREC_EVAL
+
 uv run trec-evaluate run-experiment --config bm25_medcpt --run-dir $RUN_DIR
 uv run trec-evaluate eval-runs --run-dir $RUN_DIR --trec-eval $TREC_EVAL
 
 uv run trec-evaluate run-experiment --config bm25_minilm_l12 --run-dir $RUN_DIR
+uv run trec-evaluate eval-runs --run-dir $RUN_DIR --trec-eval $TREC_EVAL
+
+uv run trec-evaluate run-experiment --config bm25_expanded_minilm_l12 --run-dir $RUN_DIR
 uv run trec-evaluate eval-runs --run-dir $RUN_DIR --trec-eval $TREC_EVAL
 
 uv run trec-evaluate run-experiment --config bm25_llm --run-dir $RUN_DIR
@@ -208,8 +223,10 @@ Các config trong `all`:
 bm25_only
 bm25_expanded
 bm25_minilm_l6
+bm25_expanded_minilm_l6
 bm25_medcpt
 bm25_minilm_l12
+bm25_expanded_minilm_l12
 bm25_llm
 bm25_minilm_l12_llm
 ```
