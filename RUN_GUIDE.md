@@ -11,6 +11,7 @@ cd /Users/phamhoangyen/thinhquyen/trec_evaluate
 Chạy tối thiểu cho BM25, eval, export table:
 
 ```bash
+curl -LsSf https://astral.sh/uv/install.sh | sh
 uv sync --extra test
 ```
 
