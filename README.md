@@ -49,40 +49,38 @@ uv run trec-evaluate run-experiment --config bm25_expanded --limit-topics 1
 uv run trec-evaluate eval-runs --run-dir runs/latest --trec-eval tools/trec_eval/trec_eval
 ```
 
-BM25 plus one neural reranker. Use `bm25_minilm_l12` for the thesis default:
-
-```bash
-uv sync --extra rerank
-uv run trec-evaluate run-experiment --config bm25_minilm_l12 --limit-topics 1
-uv run trec-evaluate eval-runs --run-dir runs/latest --trec-eval tools/trec_eval/trec_eval
-```
-
 BM25 with cached LLM query expansion, then MiniLM reranking. If the expanded
 query already exists under `cache/query_expansion/`, the LLM is not called again:
 
 ```bash
 uv sync --extra rerank --extra llm
-uv run trec-evaluate run-experiment --config bm25_expanded_minilm_l6 --limit-topics 1
+uv run --extra rerank --extra llm trec-evaluate run-experiment --config bm25_expanded_minilm_l6 --limit-topics 1
 uv run trec-evaluate eval-runs --run-dir runs/latest --trec-eval tools/trec_eval/trec_eval
 ```
 
-BM25 plus MiniLM-L12 reranker plus OpenAI LLM reranker. The default LLM model is
-`gpt-4.1-nano`:
+BM25 with cached LLM query expansion, then MiniLM-L12 reranker plus OpenAI LLM
+reranker. The default LLM model is `gpt-4.1-nano`:
 
 ```bash
 uv sync --extra rerank --extra llm
-uv run trec-evaluate run-experiment --config bm25_minilm_l12_llm --limit-topics 1
+uv run --extra rerank --extra llm trec-evaluate run-experiment --config bm25_expanded_minilm_l12_llm --limit-topics 1
 uv run trec-evaluate eval-runs --run-dir runs/latest --trec-eval tools/trec_eval/trec_eval
 ```
 
 Available experiment configs:
 
 - `bm25_expanded`: BM25 after cached LLM synonym/related-concept expansion
-- `bm25_minilm_l6`: `cross-encoder/ms-marco-MiniLM-L6-v2`
 - `bm25_expanded_minilm_l6`: cached LLM query expansion + MiniLM-L6 reranker
-- `bm25_medcpt`: `ncbi/MedCPT-Cross-Encoder`
-- `bm25_minilm_l12`: `cross-encoder/ms-marco-MiniLM-L12-v2`
+- `bm25_expanded_medcpt`: cached LLM query expansion + `ncbi/MedCPT-Cross-Encoder`
+- `bm25_expanded_bge_reranker_base`: cached LLM query expansion + `BAAI/bge-reranker-base`
+- `bm25_expanded_bge_reranker_large`: cached LLM query expansion + `BAAI/bge-reranker-large`
+- `bm25_expanded_bge_reranker_v2_m3`: cached LLM query expansion + `BAAI/bge-reranker-v2-m3`
+- `bm25_expanded_mxbai_rerank_xsmall`: cached LLM query expansion + `mixedbread-ai/mxbai-rerank-xsmall-v1`
+- `bm25_expanded_mxbai_rerank_base`: cached LLM query expansion + `mixedbread-ai/mxbai-rerank-base-v1`
+- `bm25_expanded_mxbai_rerank_large`: cached LLM query expansion + `mixedbread-ai/mxbai-rerank-large-v1`
 - `bm25_expanded_minilm_l12`: cached LLM query expansion + MiniLM-L12 reranker
+- `bm25_expanded_llm`: cached LLM query expansion + LLM reranker
+- `bm25_expanded_minilm_l12_llm`: cached LLM query expansion + MiniLM-L12 + LLM reranker
 
 ## Outputs
 

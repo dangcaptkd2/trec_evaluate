@@ -89,24 +89,17 @@ uv run trec-evaluate run-experiment --config bm25_expanded --limit-topics 1
 uv run trec-evaluate eval-runs --run-dir runs/latest --trec-eval tools/trec_eval/trec_eval
 ```
 
-BM25 + một neural reranker, khuyến nghị test `bm25_minilm_l12` vì đây là reranker mặc định của luận văn:
-
-```bash
-uv run trec-evaluate run-experiment --config bm25_minilm_l12 --limit-topics 1
-uv run trec-evaluate eval-runs --run-dir runs/latest --trec-eval tools/trec_eval/trec_eval
-```
-
 BM25 + mở rộng truy vấn bằng LLM cache + MiniLM reranker. Nếu expanded query đã có trong `cache/query_expansion/` thì lệnh này dùng cache, không gọi LLM lại:
 
 ```bash
-uv run trec-evaluate run-experiment --config bm25_expanded_minilm_l6 --limit-topics 1
+uv run --extra rerank --extra llm trec-evaluate run-experiment --config bm25_expanded_minilm_l6 --limit-topics 1
 uv run trec-evaluate eval-runs --run-dir runs/latest --trec-eval tools/trec_eval/trec_eval
 ```
 
-BM25 + MiniLM-L12 reranker + OpenAI LLM reranker:
+BM25 + mở rộng truy vấn bằng LLM cache + MiniLM-L12 reranker + OpenAI LLM reranker:
 
 ```bash
-uv run trec-evaluate run-experiment --config bm25_minilm_l12_llm --limit-topics 1
+uv run --extra rerank --extra llm trec-evaluate run-experiment --config bm25_expanded_minilm_l12_llm --limit-topics 1
 uv run trec-evaluate eval-runs --run-dir runs/latest --trec-eval tools/trec_eval/trec_eval
 ```
 
@@ -123,18 +116,61 @@ Nhớ đặt `OPENAI_API_KEY` trong `.env` trước khi chạy config có LLM.
 
 ```text
 bm25_expanded  -> BM25 + cached LLM query expansion
-bm25_minilm_l6  -> cross-encoder/ms-marco-MiniLM-L6-v2
 bm25_expanded_minilm_l6 -> cached LLM query expansion + cross-encoder/ms-marco-MiniLM-L6-v2
-bm25_medcpt  -> ncbi/MedCPT-Cross-Encoder
-bm25_minilm_l12 -> cross-encoder/ms-marco-MiniLM-L12-v2
+bm25_expanded_medcpt  -> ncbi/MedCPT-Cross-Encoder
+bm25_expanded_bge_reranker_base -> BAAI/bge-reranker-base
+bm25_expanded_bge_reranker_large -> BAAI/bge-reranker-large
+bm25_expanded_bge_reranker_v2_m3 -> BAAI/bge-reranker-v2-m3
+bm25_expanded_mxbai_rerank_xsmall -> mixedbread-ai/mxbai-rerank-xsmall-v1
+bm25_expanded_mxbai_rerank_base -> mixedbread-ai/mxbai-rerank-base-v1
+bm25_expanded_mxbai_rerank_large -> mixedbread-ai/mxbai-rerank-large-v1
 bm25_expanded_minilm_l12 -> cached LLM query expansion + cross-encoder/ms-marco-MiniLM-L12-v2
+bm25_expanded_llm -> cached LLM query expansion + LLM reranker
+bm25_expanded_minilm_l12_llm -> cached LLM query expansion + MiniLM-L12 + LLM reranker
 ```
 
 Chạy thử một model bất kỳ:
 
 ```bash
-uv run trec-evaluate run-experiment --config bm25_medcpt --limit-topics 1
+uv run --extra rerank --extra llm trec-evaluate run-experiment --config bm25_expanded_medcpt --limit-topics 1
 uv run trec-evaluate eval-runs --run-dir runs/latest --trec-eval tools/trec_eval/trec_eval
+```
+
+Với neural reranker, trên RunPod nên chạy kèm extra để chắc chắn có `torch` và `transformers` trong môi trường:
+
+```bash
+uv run --extra rerank --extra llm trec-evaluate run-experiment --config bm25_expanded_bge_reranker_base --limit-topics 1
+uv run --extra rerank --extra llm trec-evaluate eval-runs --run-dir runs/latest --trec-eval tools/trec_eval/trec_eval
+```
+
+Nếu model lớn bị CUDA OOM trên RTX A4000, giảm batch size trong `configs/trec2023.yaml`:
+
+```yaml
+experiment:
+  cross_encoder_batch_size: 8
+```
+
+Nếu vẫn OOM, giảm tiếp xuống `4`.
+
+Chạy và evaluate tất cả reranker mới:
+
+```bash
+RUN_DIR=runs/reranker_compare
+TREC_EVAL=tools/trec_eval/trec_eval
+
+for CONFIG in \
+  bm25_expanded_bge_reranker_base \
+  bm25_expanded_mxbai_rerank_base \
+  bm25_expanded_bge_reranker_v2_m3 \
+  bm25_expanded_mxbai_rerank_large \
+  bm25_expanded_bge_reranker_large \
+  bm25_expanded_mxbai_rerank_xsmall
+do
+  uv run --extra rerank --extra llm trec-evaluate run-experiment --config "$CONFIG" --run-dir "$RUN_DIR"
+  uv run --extra rerank --extra llm trec-evaluate eval-runs --run-dir "$RUN_DIR" --trec-eval "$TREC_EVAL"
+done
+
+uv run --extra rerank --extra llm trec-evaluate export-tables --run-dir "$RUN_DIR"
 ```
 
 ## 7. Chạy full BM25 official
@@ -161,25 +197,37 @@ uv run trec-evaluate eval-runs --run-dir $RUN_DIR --trec-eval $TREC_EVAL
 uv run trec-evaluate run-experiment --config bm25_expanded --run-dir $RUN_DIR
 uv run trec-evaluate eval-runs --run-dir $RUN_DIR --trec-eval $TREC_EVAL
 
-uv run trec-evaluate run-experiment --config bm25_minilm_l6 --run-dir $RUN_DIR
+uv run --extra rerank --extra llm trec-evaluate run-experiment --config bm25_expanded_minilm_l6 --run-dir $RUN_DIR
 uv run trec-evaluate eval-runs --run-dir $RUN_DIR --trec-eval $TREC_EVAL
 
-uv run trec-evaluate run-experiment --config bm25_expanded_minilm_l6 --run-dir $RUN_DIR
+uv run --extra rerank --extra llm trec-evaluate run-experiment --config bm25_expanded_medcpt --run-dir $RUN_DIR
 uv run trec-evaluate eval-runs --run-dir $RUN_DIR --trec-eval $TREC_EVAL
 
-uv run trec-evaluate run-experiment --config bm25_medcpt --run-dir $RUN_DIR
+uv run --extra rerank --extra llm trec-evaluate run-experiment --config bm25_expanded_bge_reranker_base --run-dir $RUN_DIR
+uv run --extra rerank --extra llm trec-evaluate eval-runs --run-dir $RUN_DIR --trec-eval $TREC_EVAL
+
+uv run --extra rerank --extra llm trec-evaluate run-experiment --config bm25_expanded_bge_reranker_large --run-dir $RUN_DIR
+uv run --extra rerank --extra llm trec-evaluate eval-runs --run-dir $RUN_DIR --trec-eval $TREC_EVAL
+
+uv run --extra rerank --extra llm trec-evaluate run-experiment --config bm25_expanded_bge_reranker_v2_m3 --run-dir $RUN_DIR
+uv run --extra rerank --extra llm trec-evaluate eval-runs --run-dir $RUN_DIR --trec-eval $TREC_EVAL
+
+uv run --extra rerank --extra llm trec-evaluate run-experiment --config bm25_expanded_mxbai_rerank_xsmall --run-dir $RUN_DIR
+uv run --extra rerank --extra llm trec-evaluate eval-runs --run-dir $RUN_DIR --trec-eval $TREC_EVAL
+
+uv run --extra rerank --extra llm trec-evaluate run-experiment --config bm25_expanded_mxbai_rerank_base --run-dir $RUN_DIR
+uv run --extra rerank --extra llm trec-evaluate eval-runs --run-dir $RUN_DIR --trec-eval $TREC_EVAL
+
+uv run --extra rerank --extra llm trec-evaluate run-experiment --config bm25_expanded_mxbai_rerank_large --run-dir $RUN_DIR
+uv run --extra rerank --extra llm trec-evaluate eval-runs --run-dir $RUN_DIR --trec-eval $TREC_EVAL
+
+uv run --extra rerank --extra llm trec-evaluate run-experiment --config bm25_expanded_minilm_l12 --run-dir $RUN_DIR
 uv run trec-evaluate eval-runs --run-dir $RUN_DIR --trec-eval $TREC_EVAL
 
-uv run trec-evaluate run-experiment --config bm25_minilm_l12 --run-dir $RUN_DIR
+uv run --extra llm trec-evaluate run-experiment --config bm25_expanded_llm --run-dir $RUN_DIR
 uv run trec-evaluate eval-runs --run-dir $RUN_DIR --trec-eval $TREC_EVAL
 
-uv run trec-evaluate run-experiment --config bm25_expanded_minilm_l12 --run-dir $RUN_DIR
-uv run trec-evaluate eval-runs --run-dir $RUN_DIR --trec-eval $TREC_EVAL
-
-uv run trec-evaluate run-experiment --config bm25_llm --run-dir $RUN_DIR
-uv run trec-evaluate eval-runs --run-dir $RUN_DIR --trec-eval $TREC_EVAL
-
-uv run trec-evaluate run-experiment --config bm25_minilm_l12_llm --run-dir $RUN_DIR
+uv run --extra rerank --extra llm trec-evaluate run-experiment --config bm25_expanded_minilm_l12_llm --run-dir $RUN_DIR
 uv run trec-evaluate eval-runs --run-dir $RUN_DIR --trec-eval $TREC_EVAL
 ```
 
@@ -212,7 +260,7 @@ runs/thesis_final/tables/table_ablation.tex
 Lệnh này chạy tất cả config:
 
 ```bash
-uv run trec-evaluate run-experiment --config all
+uv run --extra rerank --extra llm trec-evaluate run-experiment --config all
 uv run trec-evaluate eval-runs --run-dir runs/latest --trec-eval tools/trec_eval/trec_eval
 uv run trec-evaluate export-tables --run-dir runs/latest
 ```
@@ -222,13 +270,17 @@ Các config trong `all`:
 ```text
 bm25_only
 bm25_expanded
-bm25_minilm_l6
 bm25_expanded_minilm_l6
-bm25_medcpt
-bm25_minilm_l12
+bm25_expanded_medcpt
+bm25_expanded_bge_reranker_base
+bm25_expanded_bge_reranker_large
+bm25_expanded_bge_reranker_v2_m3
+bm25_expanded_mxbai_rerank_xsmall
+bm25_expanded_mxbai_rerank_base
+bm25_expanded_mxbai_rerank_large
 bm25_expanded_minilm_l12
-bm25_llm
-bm25_minilm_l12_llm
+bm25_expanded_llm
+bm25_expanded_minilm_l12_llm
 ```
 
 ## 11. Output cần xem

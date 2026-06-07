@@ -21,25 +21,33 @@ from .trial_text import build_trial_text
 ALL_CONFIGS = (
     "bm25_only",
     "bm25_expanded",
-    "bm25_minilm_l6",
     "bm25_expanded_minilm_l6",
-    "bm25_medcpt",
-    "bm25_minilm_l12",
+    "bm25_expanded_medcpt",
+    "bm25_expanded_bge_reranker_base",
+    "bm25_expanded_bge_reranker_large",
+    "bm25_expanded_bge_reranker_v2_m3",
+    "bm25_expanded_mxbai_rerank_xsmall",
+    "bm25_expanded_mxbai_rerank_base",
+    "bm25_expanded_mxbai_rerank_large",
     "bm25_expanded_minilm_l12",
-    "bm25_llm",
-    "bm25_minilm_l12_llm",
+    "bm25_expanded_llm",
+    "bm25_expanded_minilm_l12_llm",
 )
 
 CONFIGS = {
     "bm25_only",
     "bm25_expanded",
-    "bm25_minilm_l6",
     "bm25_expanded_minilm_l6",
-    "bm25_minilm_l12",
     "bm25_expanded_minilm_l12",
-    "bm25_medcpt",
-    "bm25_llm",
-    "bm25_minilm_l12_llm",
+    "bm25_expanded_medcpt",
+    "bm25_expanded_bge_reranker_base",
+    "bm25_expanded_bge_reranker_large",
+    "bm25_expanded_bge_reranker_v2_m3",
+    "bm25_expanded_mxbai_rerank_xsmall",
+    "bm25_expanded_mxbai_rerank_base",
+    "bm25_expanded_mxbai_rerank_large",
+    "bm25_expanded_llm",
+    "bm25_expanded_minilm_l12_llm",
 }
 
 
@@ -150,7 +158,7 @@ def run_experiment(
                 temperature=float(llm_cfg.get("temperature", 0)),
                 max_retries=int(llm_cfg.get("max_retries", 3)),
             )
-            if name in {"bm25_llm", "bm25_minilm_l12_llm"}
+            if name in {"bm25_expanded_llm", "bm25_expanded_minilm_l12_llm"}
             else None
         )
 
@@ -193,7 +201,7 @@ def run_experiment(
 
             if llm_reranker is not None:
                 llm_started = time.perf_counter()
-                window = llm_direct_window if name == "bm25_llm" else llm_final_window
+                window = llm_direct_window if name == "bm25_expanded_llm" else llm_final_window
                 _progress(progress, f"{topic_prefix}: LLM reranking top {min(window, len(ranked))}")
                 ranked = llm_rerank_candidates(query, ranked, llm_reranker, window=window, keep=llm_keep)
                 latency_rows.append(_latency_row(name, topic.number, "llm", llm_started, min(llm_keep, len(ranked))))
@@ -247,19 +255,23 @@ def _apply_field_boosts(fields: list[str], es_cfg: dict[str, Any]) -> list[str]:
 
 
 def _uses_query_expansion(name: str, expansion_cfg: dict[str, Any]) -> bool:
-    if name in {"bm25_expanded", "bm25_expanded_minilm_l6", "bm25_expanded_minilm_l12"}:
+    if name == "bm25_expanded" or name.startswith("bm25_expanded_"):
         return bool(expansion_cfg.get("enabled", True))
     return False
 
 
 def _neural_model_for_config(name: str, model_cfg: dict[str, Any]) -> str | None:
     return {
-        "bm25_minilm_l6": model_cfg.get("minilm_l6"),
         "bm25_expanded_minilm_l6": model_cfg.get("minilm_l6"),
-        "bm25_minilm_l12": model_cfg.get("minilm_l12"),
         "bm25_expanded_minilm_l12": model_cfg.get("minilm_l12"),
-        "bm25_medcpt": model_cfg.get("medcpt"),
-        "bm25_minilm_l12_llm": model_cfg.get("minilm_l12"),
+        "bm25_expanded_medcpt": model_cfg.get("medcpt"),
+        "bm25_expanded_bge_reranker_base": model_cfg.get("bge_reranker_base"),
+        "bm25_expanded_bge_reranker_large": model_cfg.get("bge_reranker_large"),
+        "bm25_expanded_bge_reranker_v2_m3": model_cfg.get("bge_reranker_v2_m3"),
+        "bm25_expanded_mxbai_rerank_xsmall": model_cfg.get("mxbai_rerank_xsmall"),
+        "bm25_expanded_mxbai_rerank_base": model_cfg.get("mxbai_rerank_base"),
+        "bm25_expanded_mxbai_rerank_large": model_cfg.get("mxbai_rerank_large"),
+        "bm25_expanded_minilm_l12_llm": model_cfg.get("minilm_l12"),
     }.get(name)
 
 

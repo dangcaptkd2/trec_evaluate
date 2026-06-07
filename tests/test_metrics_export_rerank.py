@@ -81,6 +81,6 @@ def test_expanded_neural_configs_use_expansion_and_minilm_models():
 
     assert _uses_query_expansion("bm25_expanded_minilm_l6", {"enabled": True})
     assert _uses_query_expansion("bm25_expanded_minilm_l12", {"enabled": True})
-    assert not _uses_query_expansion("bm25_minilm_l6", {"enabled": True})
+    assert not _uses_query_expansion("bm25_only", {"enabled": True})
     assert _neural_model_for_config("bm25_expanded_minilm_l6", model_cfg) == model_cfg["minilm_l6"]
     assert _neural_model_for_config("bm25_expanded_minilm_l12", model_cfg) == model_cfg["minilm_l12"]

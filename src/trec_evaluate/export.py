@@ -8,13 +8,17 @@ from pathlib import Path
 DISPLAY_NAMES = {
     "bm25_only": "BM25 only",
     "bm25_expanded": "BM25 + LLM query expansion",
-    "bm25_minilm_l6": "BM25 + MiniLM-L6",
     "bm25_expanded_minilm_l6": "BM25 expanded + MiniLM-L6",
-    "bm25_minilm_l12": "BM25 + MiniLM-L12",
     "bm25_expanded_minilm_l12": "BM25 expanded + MiniLM-L12",
-    "bm25_medcpt": "BM25 + MedCPT Cross-Encoder",
-    "bm25_llm": "BM25 + LLM reranker",
-    "bm25_minilm_l12_llm": "BM25 + MiniLM-L12 + LLM",
+    "bm25_expanded_medcpt": "BM25 expanded + MedCPT Cross-Encoder",
+    "bm25_expanded_bge_reranker_base": "BM25 expanded + BGE reranker base",
+    "bm25_expanded_bge_reranker_large": "BM25 expanded + BGE reranker large",
+    "bm25_expanded_bge_reranker_v2_m3": "BM25 expanded + BGE reranker v2 M3",
+    "bm25_expanded_mxbai_rerank_xsmall": "BM25 expanded + Mixedbread rerank xsmall",
+    "bm25_expanded_mxbai_rerank_base": "BM25 expanded + Mixedbread rerank base",
+    "bm25_expanded_mxbai_rerank_large": "BM25 expanded + Mixedbread rerank large",
+    "bm25_expanded_llm": "BM25 expanded + LLM reranker",
+    "bm25_expanded_minilm_l12_llm": "BM25 expanded + MiniLM-L12 + LLM",
 }
 
 
@@ -53,7 +57,7 @@ def export_tables(run_dir: str | Path) -> list[Path]:
 
 
 def _trec_eval_rows(metrics: dict[str, dict[str, str]]) -> list[dict[str, str]]:
-    full = metrics.get("bm25_minilm_l12_llm", {})
+    full = metrics.get("bm25_expanded_minilm_l12_llm", {})
     return [
         {"Mô hình": "BM25 (baseline) [Rybinski et al.]", "nDCG@10": "0.6190", "P@10": "0.3300", "RR": "0.5630"},
         {
@@ -75,23 +79,32 @@ def _reranker_rows(metrics: dict[str, dict[str, str]], latency: dict[str, float]
     flows = {
         "bm25_only": "Top 1000 -> Top 10",
         "bm25_expanded": "LLM expansion -> Top 1000 -> Top 10",
-        "bm25_minilm_l6": "Top 1000 -> Top 100",
         "bm25_expanded_minilm_l6": "LLM expansion -> Top 1000 -> Top 100",
-        "bm25_medcpt": "Top 1000 -> Top 100",
-        "bm25_minilm_l12": "Top 1000 -> Top 100",
+        "bm25_expanded_medcpt": "LLM expansion -> Top 1000 -> Top 100",
+        "bm25_expanded_bge_reranker_base": "LLM expansion -> Top 1000 -> Top 100",
+        "bm25_expanded_bge_reranker_large": "LLM expansion -> Top 1000 -> Top 100",
+        "bm25_expanded_bge_reranker_v2_m3": "LLM expansion -> Top 1000 -> Top 100",
+        "bm25_expanded_mxbai_rerank_xsmall": "LLM expansion -> Top 1000 -> Top 100",
+        "bm25_expanded_mxbai_rerank_base": "LLM expansion -> Top 1000 -> Top 100",
+        "bm25_expanded_mxbai_rerank_large": "LLM expansion -> Top 1000 -> Top 100",
         "bm25_expanded_minilm_l12": "LLM expansion -> Top 1000 -> Top 100",
-        "bm25_minilm_l12_llm": "Top 1000 -> Top 100 -> Top 10",
+        "bm25_expanded_llm": "LLM expansion -> Top 1000 -> Top 10",
+        "bm25_expanded_minilm_l12_llm": "LLM expansion -> Top 1000 -> Top 100 -> Top 10",
     }
     rows: list[dict[str, str]] = []
     for config in [
         "bm25_only",
         "bm25_expanded",
-        "bm25_minilm_l6",
         "bm25_expanded_minilm_l6",
-        "bm25_medcpt",
-        "bm25_minilm_l12",
+        "bm25_expanded_medcpt",
+        "bm25_expanded_bge_reranker_base",
+        "bm25_expanded_bge_reranker_large",
+        "bm25_expanded_bge_reranker_v2_m3",
+        "bm25_expanded_mxbai_rerank_xsmall",
+        "bm25_expanded_mxbai_rerank_base",
+        "bm25_expanded_mxbai_rerank_large",
         "bm25_expanded_minilm_l12",
-        "bm25_minilm_l12_llm",
+        "bm25_expanded_minilm_l12_llm",
     ]:
         row = metrics.get(config, {})
         rows.append(
@@ -111,9 +124,9 @@ def _reranker_rows(metrics: dict[str, dict[str, str]], latency: dict[str, float]
 def _ablation_rows(metrics: dict[str, dict[str, str]]) -> list[dict[str, str]]:
     configs = [
         ("(1) BM25 only", "bm25_only"),
-        ("(2) BM25 + neural reranker tốt nhất (MiniLM-L12)", "bm25_minilm_l12"),
-        ("(3) BM25 + LLM reranker", "bm25_llm"),
-        ("(4) BM25 + MiniLM-L12 + LLM reranker", "bm25_minilm_l12_llm"),
+        ("(2) BM25 expanded + neural reranker tốt nhất (MiniLM-L12)", "bm25_expanded_minilm_l12"),
+        ("(3) BM25 expanded + LLM reranker", "bm25_expanded_llm"),
+        ("(4) BM25 expanded + MiniLM-L12 + LLM reranker", "bm25_expanded_minilm_l12_llm"),
     ]
     return [
         {
