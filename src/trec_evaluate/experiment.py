@@ -83,6 +83,7 @@ def run_experiment(
     limit_topics: int | None = None,
     llm_provider: str | None = None,
     llm_model: str | None = None,
+    llm_workers: int | None = None,
     progress: bool = True,
 ) -> ExperimentResult:
     names = list(ALL_CONFIGS) if config_name == "all" else [config_name]
@@ -115,6 +116,7 @@ def run_experiment(
     llm_direct_window = int(exp_cfg.get("llm_direct_window", 100))
     llm_final_window = int(exp_cfg.get("llm_final_window", 100))
     llm_keep = int(exp_cfg.get("llm_keep", 10))
+    llm_worker_count = int(llm_workers or exp_cfg.get("llm_workers", llm_cfg.get("max_workers", 1)))
     expansion_cfg = config.get("query_expansion", {})
 
     run_files: list[Path] = []
@@ -157,6 +159,7 @@ def run_experiment(
                 cache_dir=cache_dir / "llm",
                 temperature=float(llm_cfg.get("temperature", 0)),
                 max_retries=int(llm_cfg.get("max_retries", 3)),
+                max_workers=llm_worker_count,
             )
             if name in {"bm25_expanded_llm", "bm25_expanded_minilm_l12_llm"}
             else None
@@ -202,8 +205,17 @@ def run_experiment(
             if llm_reranker is not None:
                 llm_started = time.perf_counter()
                 window = llm_direct_window if name == "bm25_expanded_llm" else llm_final_window
-                _progress(progress, f"{topic_prefix}: LLM reranking top {min(window, len(ranked))}")
-                ranked = llm_rerank_candidates(query, ranked, llm_reranker, window=window, keep=llm_keep)
+                window_size = min(window, len(ranked))
+                _progress(progress, f"{topic_prefix}: LLM reranking top {window_size} with {llm_reranker.max_workers} worker(s)")
+                ranked = llm_rerank_candidates(
+                    query,
+                    ranked,
+                    llm_reranker,
+                    window=window,
+                    keep=llm_keep,
+                    progress=_llm_progress(progress, topic_prefix),
+                )
+                _progress(progress, "")
                 latency_rows.append(_latency_row(name, topic.number, "llm", llm_started, min(llm_keep, len(ranked))))
 
             if name == "bm25_only":
@@ -301,5 +313,12 @@ def _progress(enabled: bool, message: str, end: str = "\n") -> None:
 def _neural_progress(enabled: bool, topic_prefix: str):
     def report(done: int, total: int) -> None:
         _progress(enabled, f"\r{topic_prefix}: neural scored {done}/{total} uncached candidates", end="")
+
+    return report if enabled else None
+
+
+def _llm_progress(enabled: bool, topic_prefix: str):
+    def report(done: int, total: int) -> None:
+        _progress(enabled, f"\r{topic_prefix}: LLM scored {done}/{total} uncached candidates", end="")
 
     return report if enabled else None

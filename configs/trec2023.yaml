@@ -51,6 +51,7 @@ experiment:
   llm_direct_window: 100
   llm_final_window: 100
   llm_keep: 10
+  llm_workers: 4
   output_dir: "runs"
   cache_dir: "cache"
   cross_encoder_batch_size: 16

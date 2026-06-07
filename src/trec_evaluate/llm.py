@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from collections.abc import Callable
+from concurrent.futures import ThreadPoolExecutor, as_completed
 import json
 import os
 from pathlib import Path
@@ -37,22 +39,61 @@ class LlmReranker:
         cache_dir: str | Path = "cache/llm",
         temperature: float = 0.0,
         max_retries: int = 3,
+        max_workers: int = 1,
     ):
         self.provider = provider
         self.model = model
         self.cache_dir = Path(cache_dir)
         self.temperature = temperature
         self.max_retries = max_retries
+        self.max_workers = max(1, max_workers)
 
-    def score(self, query: str, candidates: list[Candidate]) -> list[float]:
-        return [self._score_one(query, candidate) for candidate in candidates]
+    def score(
+        self,
+        query: str,
+        candidates: list[Candidate],
+        progress: Callable[[int, int], None] | None = None,
+    ) -> list[float]:
+        scores: list[float | None] = [None] * len(candidates)
+        missing: list[tuple[int, Candidate]] = []
+        for idx, candidate in enumerate(candidates):
+            cache_path = self._cache_path(query, candidate)
+            cached = load_json(cache_path)
+            if cached is not None and "score" in cached:
+                scores[idx] = float(cached["score"])
+            else:
+                missing.append((idx, candidate))
+
+        if missing:
+            if self.max_workers == 1 or len(missing) == 1:
+                for done, (idx, candidate) in enumerate(missing, start=1):
+                    scores[idx] = self._score_one_uncached(query, candidate)
+                    if progress is not None:
+                        progress(done, len(missing))
+            else:
+                workers = min(self.max_workers, len(missing))
+                with ThreadPoolExecutor(max_workers=workers) as executor:
+                    futures = {
+                        executor.submit(self._score_one_uncached, query, candidate): idx
+                        for idx, candidate in missing
+                    }
+                    for done, future in enumerate(as_completed(futures), start=1):
+                        scores[futures[future]] = future.result()
+                        if progress is not None:
+                            progress(done, len(missing))
+
+        return [float(score or 0.0) for score in scores]
 
     def _score_one(self, query: str, candidate: Candidate) -> float:
-        cache_path = self.cache_dir / self.provider / self.model.replace("/", "__") / f"{key_for(query, candidate.doc_id, candidate.text)}.json"
+        cache_path = self._cache_path(query, candidate)
         cached = load_json(cache_path)
         if cached is not None and "score" in cached:
             return float(cached["score"])
 
+        return self._score_one_uncached(query, candidate)
+
+    def _score_one_uncached(self, query: str, candidate: Candidate) -> float:
+        cache_path = self._cache_path(query, candidate)
         prompt = PROMPT.format(query=query, trial=candidate.text)
         last_error: Exception | None = None
         for attempt in range(self.max_retries):
@@ -65,6 +106,9 @@ class LlmReranker:
                 last_error = e
                 time.sleep(2**attempt)
         raise RuntimeError(f"LLM scoring failed for {candidate.doc_id}: {last_error}") from last_error
+
+    def _cache_path(self, query: str, candidate: Candidate) -> Path:
+        return self.cache_dir / self.provider / self.model.replace("/", "__") / f"{key_for(query, candidate.doc_id, candidate.text)}.json"
 
     def _call(self, prompt: str) -> dict[str, Any]:
         if self.provider in {"openai", "vllm"}:
@@ -103,10 +147,17 @@ class LlmReranker:
         raise ValueError(f"Unsupported LLM provider: {self.provider}")
 
 
-def llm_rerank_candidates(query: str, candidates: list[Candidate], reranker: LlmReranker, window: int, keep: int | None = None) -> list[Candidate]:
+def llm_rerank_candidates(
+    query: str,
+    candidates: list[Candidate],
+    reranker: LlmReranker,
+    window: int,
+    keep: int | None = None,
+    progress: Callable[[int, int], None] | None = None,
+) -> list[Candidate]:
     head = candidates[:window]
     tail = candidates[window:]
-    scores = reranker.score(query, head)
+    scores = reranker.score(query, head, progress=progress)
     reranked = [Candidate(doc_id=c.doc_id, score=s, text=c.text) for c, s in zip(head, scores)]
     reranked.sort(key=lambda item: item.score, reverse=True)
     if keep is not None:
